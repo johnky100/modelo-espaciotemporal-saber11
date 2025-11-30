@@ -1,0 +1,379 @@
+---
+title: "saber_11_auditoria_imputacion"
+author: "JOHN JAIRO PRADO PIÑERES"
+date: "`r Sys.Date()`"
+output:
+  html_document:
+    toc: true
+    toc_depth: 2
+    number_sections: true
+    toc_float:
+      collapsed: false
+    theme: cosmo
+    code_folding: hide
+  word_document:
+    toc: true
+    toc_depth: 2
+editor_options:
+  chunk_output_type: console
+---
+
+
+<style>
+
+/* ---------------------------------------------------------
+   TIPOGRAFÍA GENERAL
+--------------------------------------------------------- */
+body {
+  background-color: #F8F9FA;       /* gris claro */
+  color: #2A2A2A;                  /* gris oscuro, mejora lectura */
+  font-family: "Segoe UI", Roboto, Arial, sans-serif; /* tipografías limpias */
+  font-size: 16px;                 /* tamaño ideal para lectura */
+  line-height: 1.6;                /* más respiración entre líneas */
+  margin: 0;
+  padding: 0 12px;
+}
+
+/* ---------------------------------------------------------
+   ENCABEZADOS
+--------------------------------------------------------- */
+h1 {
+  font-size: 28px;
+  color: #003366;
+  margin-top: 30px;
+  margin-bottom: 12px;
+  font-weight: 700;
+}
+
+h2 {
+  font-size: 24px;
+  color: #005999;
+  margin-top: 24px;
+  margin-bottom: 10px;
+  font-weight: 600;
+}
+
+h3 {
+  font-size: 20px;
+  color: #0077B6;
+  margin-top: 20px;
+  margin-bottom: 8px;
+  font-weight: 600;
+}
+
+/* ---------------------------------------------------------
+   PÁRRAFOS
+--------------------------------------------------------- */
+p {
+  font-size: 16px;
+  margin-bottom: 14px;
+}
+
+/* ---------------------------------------------------------
+   BLOQUES DE CÓDIGO
+--------------------------------------------------------- */
+pre code {
+  font-family: "Consolas", "Courier New", monospace;
+  font-size: 15px;
+  background-color: #FAFAFA;
+  padding: 12px;
+  border-radius: 6px;
+  border: 1px solid #E0E0E0;
+  display: block;
+  overflow-x: auto; /* evita desbordes */
+  white-space: pre;
+}
+
+/* ---------------------------------------------------------
+   TABLAS
+--------------------------------------------------------- */
+table {
+  width: 100%;
+  border-collapse: collapse;
+  background-color: white;
+  margin: 20px 0;
+  font-size: 15px;
+}
+
+th, td {
+  border: 1px solid #D3D3D3;
+  padding: 8px 12px;
+}
+
+th {
+  background-color: #EFEFEF;
+  text-align: center;
+  font-weight: 600;
+}
+
+tr:nth-child(even) {
+  background-color: #F7F7F7; /* filas alternas, mejora lectura */
+}
+
+/* ---------------------------------------------------------
+   LISTAS
+--------------------------------------------------------- */
+ul, ol {
+  margin-left: 20px;
+  margin-bottom: 16px;
+  font-size: 16px;
+}
+
+</style>
+
+```{r limpiar entorno, echo =FALSE}
+rm(list = ls()) # Se utiliza para borrar todos los objetos del espacio de trabajo.
+graphics.off() # Se utiliza para cerrar todas las ventanas gráficas abiertas.
+cat("\014") #Limpiar consola
+
+```
+
+```{r setup, include=FALSE}
+library(knitr)
+
+# Configuración global de chunks
+opts_chunk$set(
+  results = "markup",    # Mostrar resultados (comportamiento estándar)
+  comment = "",          # No agrega '##' antes de cada línea de salida
+  tidy = FALSE,          # No re-formatea el código automáticamente
+  fig.align = "center",  # Centrar gráficos
+  fig.width = 7,         # Tamaño estándar de figuras
+  fig.height = 5
+)
+
+# Evitar notación científica
+options(scipen = 999)
+```
+
+```{r}
+options(repos = c(CRAN = "https://cloud.r-project.org"))
+
+```
+
+```{r}
+# Instalar (solo la primera vez)
+install.packages('tidyverse') # dplyr 1.1.4, readr 2.1.5, forcats 1.0.0, stringr 1.5.2, ggplot2 4.0.0, tibble 3.3.0, lubridate 1.9.4, tidyr 1.3.1, purrr 1.1.0 
+install.packages('mice')
+install.packages('VIM')
+install.packages('tidyr')
+install.packages('writexl')
+install.packages('MASS')
+install.packages('openxlsx')
+install.packages('stringi')
+install.packages('janitor')
+
+```
+
+# **FASE 1: CARGAR LIBRERÍAS**
+
+```{r}
+
+library(tidyverse)
+library(mice)
+library(VIM)
+library(tidyr)
+library(readr)
+library(writexl)
+library(MASS, exclude = "select")   # evita conflicto con dplyr::select
+library(openxlsx)
+library(stringi)
+library(janitor)
+library(lubridate)
+library(forcats)
+
+```
+
+# **Razonamiento del Uso de Datos Post-2014 en la Predicción Global**
+
+![](C:/Users/john/Desktop/Saber_11_2025/image/CambioMetodologia.jpg){width=80%}
+# **MÓDULO 1 — Cargar librerías, rutas y variables principales** 
+
+```{r}
+ruta_base <- "C:/Users/john/Desktop/Saber_11_2025/data"
+ruta_origen <- file.path(ruta_base, "2_sinDuplicados")
+ruta_imp <- file.path(ruta_base, "3_DB_imp")
+
+saber11_2019 <- read_csv(
+  file.path(ruta_origen, "saber11_2019_limpio.csv"),
+  show_col_types = FALSE
+)
+```
+
+# **MÓDULO 2 — Selección oficial de las 32 variables**
+
+```{r}
+vars_32 <- c(
+  "FAMI_EDUCACIONMADRE","FAMI_EDUCACIONPADRE","FAMI_PERSONASHOGAR",
+  "FAMI_CUARTOSHOGAR","FAMI_ESTRATOVIVIENDA","COLE_BILINGUE",
+  "ESTU_GENERO","FAMI_TIENEAUTOMOVIL","FAMI_TIENECOMPUTADOR",
+  "FAMI_TIENEINTERNET","FAMI_TIENELAVADORA","PUNT_INGLES",
+  "PUNT_MATEMATICAS","PUNT_SOCIALES_CIUDADANAS","PUNT_C_NATURALES",
+  "PUNT_LECTURA_CRITICA","PUNT_GLOBAL","PERIODO","ANIO",
+  "COLE_COD_DANE_ESTABLECIMIENTO","COLE_COD_DANE_SEDE",
+  "COLE_SEDE_PRINCIPAL","ESTU_PRIVADO_LIBERTAD","DESEMP_INGLES",
+  "COLE_AREA_UBICACION","COLE_DEPTO_UBICACION","COLE_MCPIO_UBICACION",
+  "COLE_NATURALEZA","COLE_GENERO","COLE_JORNADA",
+  "ESTU_DEPTO_PRESENTACION","ESTU_MCPIO_PRESENTACION"
+)
+
+df <- saber11_2019 %>% select(all_of(vars_32))
+```
+
+# **MÓDULO 3 — Normalización profesional**
+
+```{r}
+limpiar_2019 <- function(df) {
+
+  df %>%
+    mutate(
+      across(
+        c(FAMI_TIENEAUTOMOVIL,FAMI_TIENECOMPUTADOR,FAMI_TIENEINTERNET,
+          FAMI_TIENELAVADORA,COLE_BILINGUE),
+        ~ recode(.x,
+                 "Si"="Sí","S"="Sí","SI"="Sí",
+                 "No"="No","N"="No","NO"="No",
+                 .default = NA_character_)
+      ),
+      across(
+        c(FAMI_TIENEAUTOMOVIL,FAMI_TIENECOMPUTADOR,FAMI_TIENEINTERNET,
+          FAMI_TIENELAVADORA,COLE_BILINGUE),
+        factor, levels=c("No","Sí")
+      )
+    ) %>%
+
+    mutate(
+      FAMI_PERSONASHOGAR = case_when(
+        FAMI_PERSONASHOGAR %in% c("1 a 2","1-2") ~ "1-2",
+        FAMI_PERSONASHOGAR %in% c("3 a 4","3-4") ~ "3-4",
+        FAMI_PERSONASHOGAR %in% c("5 a 6","5-6") ~ "5-6",
+        FAMI_PERSONASHOGAR %in% c("7 a 8","7-8") ~ "7-8",
+        FAMI_PERSONASHOGAR %in% c("9 o más","9+","10 o más") ~ "9+",
+        TRUE ~ NA_character_
+      ),
+      FAMI_PERSONASHOGAR = factor(
+        FAMI_PERSONASHOGAR,
+        levels=c("1-2","3-4","5-6","7-8","9+"),
+        ordered=TRUE
+      )
+    ) %>%
+
+    mutate(
+      FAMI_CUARTOSHOGAR = case_when(
+        FAMI_CUARTOSHOGAR %in% c("Uno","1") ~ "1",
+        FAMI_CUARTOSHOGAR %in% c("Dos","2") ~ "2",
+        FAMI_CUARTOSHOGAR %in% c("Tres","3") ~ "3",
+        TRUE ~ "4+"
+      ),
+      FAMI_CUARTOSHOGAR = factor(
+        FAMI_CUARTOSHOGAR,
+        levels=c("1","2","3","4+"),
+        ordered=TRUE
+      )
+    ) %>%
+
+    mutate(
+      FAMI_ESTRATOVIVIENDA = factor(
+        FAMI_ESTRATOVIVIENDA,
+        levels=c("Estrato 1","Estrato 2","Estrato 3","Estrato 4","Estrato 5","Estrato 6"),
+        ordered=TRUE
+      )
+    ) %>%
+
+    mutate(
+      FAMI_EDUCACIONMADRE = recode(FAMI_EDUCACIONMADRE,"No Aplica"="No sabe"),
+      FAMI_EDUCACIONPADRE = recode(FAMI_EDUCACIONPADRE,"No Aplica"="No sabe")
+    ) %>%
+
+    mutate(
+      FAMI_EDUCACIONMADRE = factor(FAMI_EDUCACIONMADRE, ordered=TRUE),
+      FAMI_EDUCACIONPADRE = factor(FAMI_EDUCACIONPADRE, ordered=TRUE)
+    ) %>%
+
+    mutate(
+      DESEMP_INGLES = factor(DESEMP_INGLES,
+                             levels=c("A-","A1","A2","B1","B+"),
+                             ordered=TRUE)
+    ) %>%
+
+    mutate(
+      across(c(COLE_AREA_UBICACION,COLE_DEPTO_UBICACION,COLE_MCPIO_UBICACION,
+               COLE_NATURALEZA,COLE_GENERO,COLE_JORNADA,
+               ESTU_DEPTO_PRESENTACION,ESTU_MCPIO_PRESENTACION,ESTU_GENERO),
+             factor)
+    )
+}
+
+clean_2019 <- limpiar_2019(df)
+```
+
+# **MÓDULO 4 — Preparación MICE**
+
+```{r}
+# Variables imputables en 2019:
+
+vars_imputar <- c(
+  "FAMI_PERSONASHOGAR","FAMI_CUARTOSHOGAR","FAMI_ESTRATOVIVIENDA",
+  "FAMI_EDUCACIONPADRE","FAMI_EDUCACIONMADRE","COLE_BILINGUE",
+  "FAMI_TIENEAUTOMOVIL","FAMI_TIENECOMPUTADOR","FAMI_TIENEINTERNET",
+  "FAMI_TIENELAVADORA","ESTU_GENERO","PUNT_INGLES"
+)
+
+preparar_factores <- function(df) {
+  df[vars_imputar] <- lapply(df[vars_imputar], function(x) {
+    if (is.numeric(x)) x else factor(x)
+  })
+  df
+}
+```
+
+
+# **MÓDULO 5 — Imputación profesional (una sola fase MICE)**
+
+```{r}
+imputar_2019 <- function(df) {
+
+  df <- preparar_factores(df)
+
+  ini <- mice(df, maxit = 0)
+  met <- ini$method
+  met[] <- ""
+
+  met[c("COLE_BILINGUE",
+        "FAMI_TIENEAUTOMOVIL","FAMI_TIENECOMPUTADOR",
+        "FAMI_TIENEINTERNET","FAMI_TIENELAVADORA",
+        "ESTU_GENERO")] <- "logreg"
+
+  met[c("FAMI_PERSONASHOGAR","FAMI_CUARTOSHOGAR",
+        "FAMI_ESTRATOVIVIENDA",
+        "FAMI_EDUCACIONPADRE","FAMI_EDUCACIONMADRE")] <- "polr"
+
+  met["PUNT_INGLES"] <- "pmm"
+
+  imp <- mice(df, m=5, maxit=5, method=met, seed=5477976)
+
+  complete(imp, 1)
+}
+
+imp2019 <- imputar_2019(clean_2019)
+```
+
+
+# **MÓDULO 6 — Exportación CSV / XLSX / RDS**
+
+```{r}
+write_csv(imp2019, file.path(ruta_imp, "imp2019_final.csv"))
+saveRDS(imp2019, file.path(ruta_imp, "imp2019_final.rds"))
+write.xlsx(imp2019, file.path(ruta_imp, "imp2019_final.xlsx"), overwrite=TRUE)
+```
+
+
+# **MÓDULO 7 — Validación final**
+
+```{r}
+glimpse(imp2019)
+colSums(is.na(imp2019))
+summary(imp2019)
+```
+
+
+

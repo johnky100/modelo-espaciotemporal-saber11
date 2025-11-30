@@ -1,0 +1,362 @@
+---
+title: "saber_11_general"
+author: "JOHN JAIRO PRADO PIÑERES"
+date: "`r Sys.Date()`"
+output:
+  html_document:
+    toc: true
+    toc_depth: 2
+    number_sections: true
+    toc_float:
+      collapsed: false
+    theme: cosmo
+    code_folding: hide
+  word_document:
+    toc: true
+    toc_depth: 2
+editor_options:
+  chunk_output_type: console
+---
+
+
+<style>
+
+/* ---------------------------------------------------------
+   TIPOGRAFÍA GENERAL
+--------------------------------------------------------- */
+body {
+  background-color: #F8F9FA;       /* gris claro */
+  color: #2A2A2A;                  /* gris oscuro, mejora lectura */
+  font-family: "Segoe UI", Roboto, Arial, sans-serif; /* tipografías limpias */
+  font-size: 16px;                 /* tamaño ideal para lectura */
+  line-height: 1.6;                /* más respiración entre líneas */
+  margin: 0;
+  padding: 0 12px;
+}
+
+/* ---------------------------------------------------------
+   ENCABEZADOS
+--------------------------------------------------------- */
+h1 {
+  font-size: 28px;
+  color: #003366;
+  margin-top: 30px;
+  margin-bottom: 12px;
+  font-weight: 700;
+}
+
+h2 {
+  font-size: 24px;
+  color: #005999;
+  margin-top: 24px;
+  margin-bottom: 10px;
+  font-weight: 600;
+}
+
+h3 {
+  font-size: 20px;
+  color: #0077B6;
+  margin-top: 20px;
+  margin-bottom: 8px;
+  font-weight: 600;
+}
+
+/* ---------------------------------------------------------
+   PÁRRAFOS
+--------------------------------------------------------- */
+p {
+  font-size: 16px;
+  margin-bottom: 14px;
+}
+
+/* ---------------------------------------------------------
+   BLOQUES DE CÓDIGO
+--------------------------------------------------------- */
+pre code {
+  font-family: "Consolas", "Courier New", monospace;
+  font-size: 15px;
+  background-color: #FAFAFA;
+  padding: 12px;
+  border-radius: 6px;
+  border: 1px solid #E0E0E0;
+  display: block;
+  overflow-x: auto; /* evita desbordes */
+  white-space: pre;
+}
+
+/* ---------------------------------------------------------
+   TABLAS
+--------------------------------------------------------- */
+table {
+  width: 100%;
+  border-collapse: collapse;
+  background-color: white;
+  margin: 20px 0;
+  font-size: 15px;
+}
+
+th, td {
+  border: 1px solid #D3D3D3;
+  padding: 8px 12px;
+}
+
+th {
+  background-color: #EFEFEF;
+  text-align: center;
+  font-weight: 600;
+}
+
+tr:nth-child(even) {
+  background-color: #F7F7F7; /* filas alternas, mejora lectura */
+}
+
+/* ---------------------------------------------------------
+   LISTAS
+--------------------------------------------------------- */
+ul, ol {
+  margin-left: 20px;
+  margin-bottom: 16px;
+  font-size: 16px;
+}
+
+</style>
+
+```{r limpiar entorno, echo =FALSE}
+rm(list = ls()) # Se utiliza para borrar todos los objetos del espacio de trabajo.
+graphics.off() # Se utiliza para cerrar todas las ventanas gráficas abiertas.
+cat("\014") #Limpiar consola
+
+```
+
+```{r setup, include=FALSE}
+library(knitr)
+
+# Configuración global de chunks
+opts_chunk$set(
+  results = "markup",    # Mostrar resultados (comportamiento estándar)
+  comment = "",          # No agrega '##' antes de cada línea de salida
+  tidy = FALSE,          # No re-formatea el código automáticamente
+  fig.align = "center",  # Centrar gráficos
+  fig.width = 7,         # Tamaño estándar de figuras
+  fig.height = 5
+)
+
+# Evitar notación científica
+options(scipen = 999)
+```
+
+```{r}
+options(repos = c(CRAN = "https://cloud.r-project.org"))
+
+```
+
+
+```{r}
+
+# INSTALACIÓN Y CARGA DE PAQUETES
+
+# Instalar (solo la primera vez)
+install.packages("tidyverse") # dplyr, tidyr, ggplot2, readr, tibbles
+install.packages("mice") # imputación múltiple
+install.packages("VIM") # diagnóstico y visualización de NA
+install.packages("writexl") # exportar a Excel
+install.packages("MASS") # estadísticas (conflicto con select)
+install.packages("openxlsx") # leer/escribir Excel
+install.packages("stringi") # manejo avanzado de texto
+install.packages("janitor") # limpieza de nombres y tablas
+install.packages("lubridate") # manejo de fechas
+install.packages("stringr") # funciones de texto
+
+install.packages("readr") # lectura eficiente de CSV
+install.packages("dplyr") # manipulación de datos
+install.packages("purrr") # programación funcional
+install.packages("fs") # manejo de archivos y directorios
+install.packages("openxlsx") # crear, leer y escribir archivos Excel (.xlsx)
+```
+
+###############################################################
+# PROCESAMIENTO COMPLETO DEL SABER 11 (2010–2022)
+# - FASE 0: Cargar base original
+# - FASE 1: Crear carpetas por año y dividir por periodos
+# - FASE 2: Unificar periodos de cada año
+# Autor: John Jairo Prado Piñeres
+###############################################################
+
+# **FASE 1: CARGAR LIBRERÍAS**
+
+```{r}
+
+# Conjunto principal de librerías para manejo, limpieza y exportación de datos
+
+library(readr) # lectura rápida y eficiente de archivos CSV
+library(dplyr) # manipulación de datos (filter, mutate, group_by)
+library(purrr) # programación funcional (map, walk)
+library(fs) # manejo de archivos y creación de directorios
+library(openxlsx)
+
+```
+
+Esta sección carga todas las librerías necesarias para procesar tus bases de datos del Saber 11.
+Usamos exclude = "select" para evitar conflictos entre MASS y dplyr.
+
+# **CARGA DE DATOS ORIGINALES
+
+```{r}
+# CARGA DE DATOS ORIGINALES
+
+saber11_raw <- read_csv(
+  "C:/Users/john/Desktop/Saber_11_2025/data/Resultados_únicos_Saber_11_20251019.csv"
+)
+
+# confirmar
+glimpse(saber11_raw)
+names(saber11_raw)
+```
+
+
+```{r}
+
+# CREAR COLUMNA ANIO A PARTIR DE PERIODO
+
+saber11 <- saber11_raw %>%
+  mutate(
+    PERIODO = as.character(PERIODO),
+    ANIO = substr(PERIODO, 1, 4)
+  )
+
+# Años detectados
+anios <- unique(saber11$ANIO)
+print(anios)
+
+
+#GUARDAR ARCHIVOS POR AÑO Y PERIODO
+
+base_dir <- "C:/Users/john/Desktop/Saber_11_2025/data/chunks/"
+
+walk(anios, function(anio) {
+  
+  # Crear carpeta del año
+  year_dir <- file.path(base_dir, anio)
+  dir_create(year_dir)
+  
+  # Filtrar datos del año
+  data_year <- saber11 %>% filter(ANIO == anio)
+  
+  # Periodos dentro del año (ej: 20101, 20102, 20103)
+  periodos <- unique(data_year$PERIODO)
+  
+  # Guardar cada periodo como archivo independiente
+  walk(periodos, function(periodo) {
+    
+    data_periodo <- data_year %>% filter(PERIODO == periodo)
+    
+    file_out <- file.path(year_dir, paste0("Saber11_", periodo, ".csv"))
+    
+    write_csv(data_periodo, file_out)
+  })
+})
+
+message("\nFase 1 completada: archivos separados por año y periodo\n")
+
+
+# UNIFICAR ARCHIVOS DE CADA AÑO Y EXPORTAR CSV + XLSX
+
+output_dir <- "C:/Users/john/Desktop/Saber_11_2025/data/UNIDOS/"
+dir_create(output_dir)
+
+# Detectar carpetas 2010–2022
+anios_disponibles <- dir_ls(
+  base_dir,
+  type = "directory",
+  regexp = "[0-9]{4}$"
+) %>% path_file()
+
+print(anios_disponibles)
+
+
+# Tipos robustos para leer todos los periodos
+tipos_forzados <- cols(
+  .default = col_character(),
+  PERIODO = col_double(),
+  PUNT_INGLES = col_double(),
+  PUNT_MATEMATICAS = col_double(),
+  PUNT_SOCIALES_CIUDADANAS = col_double(),
+  PUNT_C_NATURALES = col_double(),
+  PUNT_LECTURA_CRITICA = col_double(),
+  PUNT_GLOBAL = col_double()
+)
+
+
+walk(anios_disponibles, function(anio) {
+  
+  message("UNIFICANDO AÑO: ", anio)
+  
+  ruta_anio <- file.path(base_dir, anio)
+  
+  archivos <- dir_ls(
+    ruta_anio,
+    regexp = "\\.csv$",
+    type = "file"
+  )
+  
+  if (length(archivos) == 0) {
+    warning("No hay archivos CSV en: ", ruta_anio)
+    return(NULL)
+  }
+  
+  # Leer + unir periodos del año
+  data_anio <- archivos %>%
+    map(~ read_csv(.x, col_types = tipos_forzados, show_col_types = FALSE)) %>%
+    bind_rows()
+  
+  message("Registros totales en ", anio, ": ", nrow(data_anio))
+  
+  # Exportar CSV
+  write_csv(
+    data_anio,
+    file.path(output_dir, paste0("Saber11_", anio, "_UNIDO.csv"))
+  )
+  
+  # Exportar XLSX
+  write.xlsx(
+    data_anio,
+    file = file.path(output_dir, paste0("Saber11_", anio, "_UNIDO.xlsx")),
+    overwrite = TRUE
+  )
+  
+  message("Exportado CSV + XLSX para ", anio)
+})
+
+
+```
+
+# **Tabla por años y porcentaje**
+
+| Año  | Registros   | Porcentaje (%) |
+|------|-------------|----------------|
+| 2010 | 670,030     | 10.99%         |
+| 2011 | 650,420     | 10.66%         |
+| 2012 | 680,388     | 11.16%         |
+| 2013 | 583,775     | 9.57%          |
+| 2014 | 571,637     | 9.37%          |
+| 2015 | 570,464     | 9.35%          |
+| 2016 | 563,370     | 9.24%          |
+| 2017 | 561,287     | 9.20%          |
+| 2018 | 32,348      | 0.53%          |
+| 2019 | 1,109,085   | 18.19%         |
+| **2020** | 15,435      | 0.25%          |
+| **2021** | 15,528      | 0.25%          |
+| 2022 | 1,085,937   | 17.80%         |
+| **TOTAL** | **6,099,664** | **100%** |
+
+
+# **CONCLUSIONES**
+
+
+El proceso de depuración, estandarización y unificación de los microdatos del examen Saber 11 permitió consolidar un conjunto de datos robusto y metodológicamente consistente para el periodo 2010–2022. A partir del archivo original —que contenía 7.109.704 registros— se identificó que únicamente 6.099.664 correspondían a observaciones válidas dentro del intervalo temporal oficial del estudio. La diferencia se explicó por la presencia de registros adicionales no pertinentes para el análisis longitudinal, tales como observaciones sin código de periodo, inconsistencias de formato en la variable PERIODO, registros administrativos y casos atípicos asociados a pruebas extraordinarias o datos sin correspondencia en el calendario oficial del ICFES.
+
+La clasificación y procesamiento de los registros permitieron garantizar que únicamente se conservaran los datos coherentes con la estructura histórica del examen Saber 11. De esta manera, se aseguraron comparaciones válidas y uniformes a lo largo del tiempo, evitando sesgos derivados de reformulaciones del instrumento, cambios administrativos o variaciones en la población evaluada. La homogeneización de tipos de datos, la preservación de los identificadores administrativos y la eliminación de duplicados entre periodos fueron fundamentales para estabilizar la base analítica.
+
+Los resultados evidenciaron además la fuerte variabilidad anual en el número de estudiantes que presentaron la prueba, especialmente durante los años 2018, 2020 y 2021, afectados por cambios operativos y por las restricciones generadas por la pandemia de COVID-19. Estas fluctuaciones deben considerarse en futuros modelos predictivos y análisis espaciotemporales, dado que pueden introducir patrones no atribuibles a tendencias educativas sino a condiciones externas.
+
+El conjunto final constituye una base de datos estructuralmente confiable y empíricamente consistente para el desarrollo de modelos de grafos (GNN), análisis de series temporales y proyecciones del rendimiento académico hacia el periodo 2023–2026. La limpieza y organización del dataset garantizan que las estimaciones, inferencias y predicciones derivadas de los modelos analíticos se fundamenten sobre información válida, comparable y metodológicamente sólida, lo que fortalece la calidad y reproducibilidad de la investigación.

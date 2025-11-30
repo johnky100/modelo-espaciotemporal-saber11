@@ -1,0 +1,296 @@
+---
+title: "saber_11_general"
+author: "JOHN JAIRO PRADO PIÑERES"
+date: "`r Sys.Date()`"
+output:
+  html_document:
+    toc: true
+    toc_depth: 2
+    number_sections: true
+    toc_float:
+      collapsed: false
+    theme: cosmo
+    code_folding: hide
+  word_document:
+    toc: true
+    toc_depth: 2
+editor_options:
+  chunk_output_type: console
+---
+
+
+<style>
+
+/* ---------------------------------------------------------
+   TIPOGRAFÍA GENERAL
+--------------------------------------------------------- */
+body {
+  background-color: #F8F9FA;       /* gris claro */
+  color: #2A2A2A;                  /* gris oscuro, mejora lectura */
+  font-family: "Segoe UI", Roboto, Arial, sans-serif; /* tipografías limpias */
+  font-size: 16px;                 /* tamaño ideal para lectura */
+  line-height: 1.6;                /* más respiración entre líneas */
+  margin: 0;
+  padding: 0 12px;
+}
+
+/* ---------------------------------------------------------
+   ENCABEZADOS
+--------------------------------------------------------- */
+h1 {
+  font-size: 28px;
+  color: #003366;
+  margin-top: 30px;
+  margin-bottom: 12px;
+  font-weight: 700;
+}
+
+h2 {
+  font-size: 24px;
+  color: #005999;
+  margin-top: 24px;
+  margin-bottom: 10px;
+  font-weight: 600;
+}
+
+h3 {
+  font-size: 20px;
+  color: #0077B6;
+  margin-top: 20px;
+  margin-bottom: 8px;
+  font-weight: 600;
+}
+
+/* ---------------------------------------------------------
+   PÁRRAFOS
+--------------------------------------------------------- */
+p {
+  font-size: 16px;
+  margin-bottom: 14px;
+}
+
+/* ---------------------------------------------------------
+   BLOQUES DE CÓDIGO
+--------------------------------------------------------- */
+pre code {
+  font-family: "Consolas", "Courier New", monospace;
+  font-size: 15px;
+  background-color: #FAFAFA;
+  padding: 12px;
+  border-radius: 6px;
+  border: 1px solid #E0E0E0;
+  display: block;
+  overflow-x: auto; /* evita desbordes */
+  white-space: pre;
+}
+
+/* ---------------------------------------------------------
+   TABLAS
+--------------------------------------------------------- */
+table {
+  width: 100%;
+  border-collapse: collapse;
+  background-color: white;
+  margin: 20px 0;
+  font-size: 15px;
+}
+
+th, td {
+  border: 1px solid #D3D3D3;
+  padding: 8px 12px;
+}
+
+th {
+  background-color: #EFEFEF;
+  text-align: center;
+  font-weight: 600;
+}
+
+tr:nth-child(even) {
+  background-color: #F7F7F7; /* filas alternas, mejora lectura */
+}
+
+/* ---------------------------------------------------------
+   LISTAS
+--------------------------------------------------------- */
+ul, ol {
+  margin-left: 20px;
+  margin-bottom: 16px;
+  font-size: 16px;
+}
+
+</style>
+
+```{r limpiar entorno, echo =FALSE}
+rm(list = ls()) # Se utiliza para borrar todos los objetos del espacio de trabajo.
+graphics.off() # Se utiliza para cerrar todas las ventanas gráficas abiertas.
+cat("\014") #Limpiar consola
+
+```
+
+```{r setup, include=FALSE}
+library(knitr)
+
+# Configuración global de chunks
+opts_chunk$set(
+  results = "markup",    # Mostrar resultados (comportamiento estándar)
+  comment = "",          # No agrega '##' antes de cada línea de salida
+  tidy = FALSE,          # No re-formatea el código automáticamente
+  fig.align = "center",  # Centrar gráficos
+  fig.width = 7,         # Tamaño estándar de figuras
+  fig.height = 5
+)
+
+# Evitar notación científica
+options(scipen = 999)
+```
+
+```{r}
+options(repos = c(CRAN = "https://cloud.r-project.org"))
+
+```
+
+
+```{r}
+
+# INSTALACIÓN Y CARGA DE PAQUETES
+
+# Instalar (solo la primera vez)
+install.packages("tidyverse") # dplyr, tidyr, ggplot2, readr, tibbles
+install.packages("mice") # imputación múltiple
+install.packages("VIM") # diagnóstico y visualización de NA
+install.packages("writexl") # exportar a Excel
+install.packages("MASS") # estadísticas (conflicto con select)
+install.packages("openxlsx") # leer/escribir Excel
+install.packages("stringi") # manejo avanzado de texto
+install.packages("janitor") # limpieza de nombres y tablas
+install.packages("lubridate") # manejo de fechas
+install.packages("stringr") # funciones de texto
+
+install.packages("readr") # lectura eficiente de CSV
+install.packages("dplyr") # manipulación de datos
+install.packages("purrr") # programación funcional
+install.packages("fs") # manejo de archivos y directorios
+install.packages("openxlsx") # crear, leer y escribir archivos Excel (.xlsx)
+```
+
+
+# **FASE 1: CARGAR LIBRERÍAS**
+
+```{r}
+
+# Conjunto principal de librerías para manejo, limpieza y exportación de datos
+
+library(readr) # lectura rápida y eficiente de archivos CSV
+library(dplyr) # manipulación de datos (filter, mutate, group_by)
+library(purrr) # programación funcional (map, walk)
+library(fs) # manejo de archivos y creación de directorios
+library(openxlsx)
+library(readxl)
+library(janitor)
+
+```
+
+# **FUNCIÓN DE LIMPIEZA**
+
+```{r}
+
+#   FUNCIÓN INDIVIDUAL DE LIMPIEZA PARA SABER 11 POR AÑO
+
+limpiar_saber11_anual <- function(archivo) {
+  
+  df <- read_xlsx(archivo) %>%
+    clean_names() %>%
+    
+    # Asegurar UTF-8 desde la carga
+    mutate(across(where(is.character), enc2utf8)) %>%
+    
+    # 1. Estandarización de categóricas
+    mutate(
+      cole_bilingue = toupper(cole_bilingue),
+      estu_genero = toupper(estu_genero),
+      cole_calendario = ifelse(cole_calendario %in% c("A", "B"), cole_calendario, NA),
+      cole_naturaleza = case_when(
+        cole_naturaleza %in% c("OFICIAL", "NO OFICIAL") ~ cole_naturaleza,
+        TRUE ~ NA_character_
+      )
+    ) %>%
+    
+    # 2. Conversión de numéricas
+    mutate(
+      punt_global = as.numeric(punt_global),
+      punt_matematicas = as.numeric(punt_matematicas),
+      punt_ingles = as.numeric(punt_ingles),
+      punt_sociales_ciudadanas = as.numeric(punt_sociales_ciudadanas),
+      punt_c_naturales = as.numeric(punt_c_naturales),
+      punt_lectura_critica = as.numeric(punt_lectura_critica)
+    ) %>%
+    
+    # 3. Conversión de fechas
+    mutate(
+      estu_fechanacimiento = suppressWarnings(
+        as.Date(estu_fechanacimiento, format = "%d/%m/%Y")
+      )
+    ) %>%
+    
+    # 4. Limpieza de espacios y asegurar UTF-8
+    mutate(across(where(is.character), ~ str_squish(enc2utf8(.))))
+  
+  return(df)
+}
+
+
+```
+
+# **PROCESAR TODOS LOS AÑOS (2010–2022) Y EXPORTAR**
+
+```{r}
+
+#   PROCESAR TODOS LOS AÑOS (2010–2022) Y EXPORTAR
+
+ruta <- "C:/Users/john/Desktop/Saber_11_2025/data/sinDuplicados"
+salida <- "C:/Users/john/Desktop/Saber_11_2025/data/Limpios_Final"
+
+# Crear carpeta de salida si no existe
+if(!dir.exists(salida)) dir.create(salida, recursive = TRUE)
+
+# Archivos originales por año
+archivos <- list.files(ruta, pattern = "_limpio.xlsx$", full.names = TRUE)
+
+# Limpiar cada archivo y exportar
+for (archivo in archivos) {
+  
+  # 1. Nombre base del archivo
+  nombre_base <- tools::file_path_sans_ext(basename(archivo))
+  
+  # 2. Aplicar limpieza
+  df <- limpiar_saber11_anual(archivo)
+  
+  # 3. Exportar CSV
+  write.csv(df,
+            file = file.path(salida, paste0(nombre_base, "_final.csv")),
+            row.names = FALSE)
+  
+  # 4. Exportar XLSX
+  write_xlsx(df,
+             path = file.path(salida, paste0(nombre_base, "_final.xlsx")))
+  
+  cat("Exportado:", nombre_base, "\n")
+}
+
+cat("\n PROCESO COMPLETO — Todos los años exportados en CSV y XLSX\n")
+```
+
+
+```{r}
+
+df_2010 <- read_csv2(
+  "C:/Users/john/Desktop/Saber_11_2025/data/Limpios_Final/saber11_2010_limpio_final.csv",
+  locale = locale(encoding = "UTF-8")
+)
+
+glimpse(df_2010)
+
+
+```
+

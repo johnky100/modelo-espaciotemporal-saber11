@@ -1,0 +1,52 @@
+# ===============================
+# ARCHIVOS DE DATOS GRANDES
+# ===============================
+data/
+resultados/
+modelos/
+mapas/
+animaciones/
+
+# ===============================
+# ARCHIVOS DE PYTHON / JUPYTER
+# ===============================
+.ipynb_checkpoints/
+*.pyc
+__pycache__/
+
+# ===============================
+# ARCHIVOS DE R
+# ===============================
+.Rhistory
+.RData
+.RDataTmp*
+.Rproj.user/
+*.Rproj
+
+# ===============================
+# ARCHIVOS PESADOS COMUNES
+# ===============================
+*.csv
+*.xlsx
+*.xls
+*.parquet
+*.npy
+*.pt
+*.png
+*.jpg
+*.jpeg
+*.gif
+*.html
+*.json
+
+# ===============================
+# SISTEMA OPERATIVO / BASURA
+# ===============================
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# ===============================
+# LOGS
+# ===============================
+*.log

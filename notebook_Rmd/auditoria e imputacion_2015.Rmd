@@ -1,0 +1,503 @@
+---
+title: "saber_11_auditoria_imputacion"
+author: "JOHN JAIRO PRADO PIÑERES"
+date: "`r Sys.Date()`"
+output:
+  html_document:
+    toc: true
+    toc_depth: 2
+    number_sections: true
+    toc_float:
+      collapsed: false
+    theme: cosmo
+    code_folding: hide
+  word_document:
+    toc: true
+    toc_depth: 2
+editor_options:
+  chunk_output_type: console
+---
+
+
+<style>
+
+/* ---------------------------------------------------------
+   TIPOGRAFÍA GENERAL
+--------------------------------------------------------- */
+body {
+  background-color: #F8F9FA;       /* gris claro */
+  color: #2A2A2A;                  /* gris oscuro, mejora lectura */
+  font-family: "Segoe UI", Roboto, Arial, sans-serif; /* tipografías limpias */
+  font-size: 16px;                 /* tamaño ideal para lectura */
+  line-height: 1.6;                /* más respiración entre líneas */
+  margin: 0;
+  padding: 0 12px;
+}
+
+/* ---------------------------------------------------------
+   ENCABEZADOS
+--------------------------------------------------------- */
+h1 {
+  font-size: 28px;
+  color: #003366;
+  margin-top: 30px;
+  margin-bottom: 12px;
+  font-weight: 700;
+}
+
+h2 {
+  font-size: 24px;
+  color: #005999;
+  margin-top: 24px;
+  margin-bottom: 10px;
+  font-weight: 600;
+}
+
+h3 {
+  font-size: 20px;
+  color: #0077B6;
+  margin-top: 20px;
+  margin-bottom: 8px;
+  font-weight: 600;
+}
+
+/* ---------------------------------------------------------
+   PÁRRAFOS
+--------------------------------------------------------- */
+p {
+  font-size: 16px;
+  margin-bottom: 14px;
+}
+
+/* ---------------------------------------------------------
+   BLOQUES DE CÓDIGO
+--------------------------------------------------------- */
+pre code {
+  font-family: "Consolas", "Courier New", monospace;
+  font-size: 15px;
+  background-color: #FAFAFA;
+  padding: 12px;
+  border-radius: 6px;
+  border: 1px solid #E0E0E0;
+  display: block;
+  overflow-x: auto; /* evita desbordes */
+  white-space: pre;
+}
+
+/* ---------------------------------------------------------
+   TABLAS
+--------------------------------------------------------- */
+table {
+  width: 100%;
+  border-collapse: collapse;
+  background-color: white;
+  margin: 20px 0;
+  font-size: 15px;
+}
+
+th, td {
+  border: 1px solid #D3D3D3;
+  padding: 8px 12px;
+}
+
+th {
+  background-color: #EFEFEF;
+  text-align: center;
+  font-weight: 600;
+}
+
+tr:nth-child(even) {
+  background-color: #F7F7F7; /* filas alternas, mejora lectura */
+}
+
+/* ---------------------------------------------------------
+   LISTAS
+--------------------------------------------------------- */
+ul, ol {
+  margin-left: 20px;
+  margin-bottom: 16px;
+  font-size: 16px;
+}
+
+</style>
+
+```{r limpiar entorno, echo =FALSE}
+rm(list = ls()) # Se utiliza para borrar todos los objetos del espacio de trabajo.
+graphics.off() # Se utiliza para cerrar todas las ventanas gráficas abiertas.
+cat("\014") #Limpiar consola
+
+```
+
+```{r setup, include=FALSE}
+library(knitr)
+
+# Configuración global de chunks
+opts_chunk$set(
+  results = "markup",    # Mostrar resultados (comportamiento estándar)
+  comment = "",          # No agrega '##' antes de cada línea de salida
+  tidy = FALSE,          # No re-formatea el código automáticamente
+  fig.align = "center",  # Centrar gráficos
+  fig.width = 7,         # Tamaño estándar de figuras
+  fig.height = 5
+)
+
+# Evitar notación científica
+options(scipen = 999)
+```
+
+```{r}
+options(repos = c(CRAN = "https://cloud.r-project.org"))
+
+```
+
+```{r}
+# Instalar (solo la primera vez)
+install.packages('tidyverse') # dplyr 1.1.4, readr 2.1.5, forcats 1.0.0, stringr 1.5.2, ggplot2 4.0.0, tibble 3.3.0, lubridate 1.9.4, tidyr 1.3.1, purrr 1.1.0 
+install.packages('mice')
+install.packages('VIM')
+install.packages('tidyr')
+install.packages('writexl')
+install.packages('MASS')
+install.packages('openxlsx')
+install.packages('stringi')
+install.packages('janitor')
+
+```
+
+# **FASE 1: CARGAR LIBRERÍAS**
+
+```{r}
+
+library(tidyverse)
+library(mice)
+library(VIM)
+library(tidyr)
+library(readr)
+library(writexl)
+library(MASS, exclude = "select")   # evita conflicto con dplyr::select
+library(openxlsx)
+library(stringi)
+library(janitor)
+library(lubridate)
+library(forcats)
+
+```
+
+# **Razonamiento del Uso de Datos Post-2014 en la Predicción Global**
+
+![](C:/Users/john/Desktop/Saber_11_2025/image/CambioMetodologia.jpg){width=80%}
+
+# **SABER 11 — IMPUTACIÓN 2015**
+
+
+# **1. Funciones auxiliares**
+
+# **1.1 Verificar valores únicos**
+
+```{r}
+verificar_unicos <- function(df, max_mostrar = 20) {
+  map_df(names(df), function(v) {
+    tibble(
+      variable = v,
+      tipo = class(df[[v]])[1],
+      n_unicos = length(unique(df[[v]])),
+      muestra = paste(head(unique(df[[v]]), max_mostrar), collapse=", ")
+    )
+  })
+}
+
+```
+
+# **1.2 Resumen de nulos**
+
+```{r}
+resumen_nulos_fun <- function(df){
+  df %>%
+    summarise(across(everything(), ~ sum(is.na(.)))) %>%
+    pivot_longer(cols = everything(),
+                 names_to = "Variable",
+                 values_to = "Nulos") %>%
+    mutate(Porcentaje = round((Nulos / nrow(df)) * 100, 3)) %>%
+    arrange(desc(Nulos))
+}
+```
+
+
+# **2. Función de limpieza oficial**
+
+```{r}
+limpiar_saber11 <- function(df) {
+  df %>%
+    # 1. Selección de variables oficiales
+    select(
+      PERIODO, ANIO,
+      COLE_COD_DANE_ESTABLECIMIENTO, COLE_COD_DANE_SEDE,
+      PUNT_INGLES, PUNT_MATEMATICAS, PUNT_SOCIALES_CIUDADANAS,
+      PUNT_C_NATURALES, PUNT_LECTURA_CRITICA, PUNT_GLOBAL,
+
+      COLE_SEDE_PRINCIPAL, ESTU_PRIVADO_LIBERTAD,
+      FAMI_TIENEAUTOMOVIL, FAMI_TIENECOMPUTADOR,
+      FAMI_TIENEINTERNET, FAMI_TIENELAVADORA,
+      COLE_BILINGUE,
+
+      FAMI_CUARTOSHOGAR, FAMI_PERSONASHOGAR,
+      FAMI_EDUCACIONMADRE, FAMI_EDUCACIONPADRE,
+      FAMI_ESTRATOVIVIENDA, DESEMP_INGLES,
+
+      COLE_AREA_UBICACION, COLE_DEPTO_UBICACION,
+      COLE_MCPIO_UBICACION, COLE_NATURALEZA,
+      COLE_GENERO, COLE_JORNADA,
+
+      ESTU_DEPTO_PRESENTACION, ESTU_MCPIO_PRESENTACION,
+      ESTU_GENERO
+    ) %>%
+
+    # 2. Puntajes numéricos
+    mutate(across(starts_with("PUNT_"), as.numeric)) %>%
+
+    # 3. Recodificación binarias
+    mutate(across(
+      c(COLE_SEDE_PRINCIPAL, ESTU_PRIVADO_LIBERTAD,
+        FAMI_TIENEAUTOMOVIL, FAMI_TIENECOMPUTADOR,
+        FAMI_TIENEINTERNET, FAMI_TIENELAVADORA, COLE_BILINGUE),
+      ~ recode(.x, "Si"="Sí","SI"="Sí","S"="Sí","1"="Sí",
+                  "No"="No","NO"="No","N"="No","0"="No")
+    )) %>%
+    mutate(across(
+      c(COLE_SEDE_PRINCIPAL, ESTU_PRIVADO_LIBERTAD,
+        FAMI_TIENEAUTOMOVIL, FAMI_TIENECOMPUTADOR,
+        FAMI_TIENEINTERNET, FAMI_TIENELAVADORA, COLE_BILINGUE),
+      factor, levels = c("No","Sí")
+    )) %>%
+
+    # 4. Ordinales
+    mutate(
+      FAMI_CUARTOSHOGAR = recode(FAMI_CUARTOSHOGAR,
+        "Cuatro"="Cuatro o más", "Cinco"="Cuatro o más"),
+      FAMI_PERSONASHOGAR = recode(FAMI_PERSONASHOGAR,
+        "Cinco"="Cinco o más")
+    ) %>%
+    mutate(
+      FAMI_CUARTOSHOGAR = factor(FAMI_CUARTOSHOGAR,
+        levels=c("Uno","Dos","Tres","Cuatro o más"), ordered=TRUE),
+      FAMI_PERSONASHOGAR = factor(FAMI_PERSONASHOGAR,
+        levels=c("Dos","Tres","Cuatro","Cinco o más"), ordered=TRUE),
+      FAMI_EDUCACIONMADRE = factor(FAMI_EDUCACIONMADRE, ordered=TRUE),
+      FAMI_EDUCACIONPADRE = factor(FAMI_EDUCACIONPADRE, ordered=TRUE),
+      FAMI_ESTRATOVIVIENDA = factor(FAMI_ESTRATOVIVIENDA, ordered=TRUE),
+      DESEMP_INGLES = factor(DESEMP_INGLES, ordered=TRUE)
+    ) %>%
+
+    # 5. Nominales
+    mutate(across(
+      c(COLE_AREA_UBICACION, COLE_DEPTO_UBICACION,
+        COLE_MCPIO_UBICACION, COLE_NATURALEZA,
+        COLE_GENERO, COLE_JORNADA,
+        ESTU_DEPTO_PRESENTACION, ESTU_MCPIO_PRESENTACION,
+        ESTU_GENERO),
+      factor
+    ))
+}
+```
+
+# **3. Cargar dataset 2015**
+
+```{r}
+saber11_2015 <- read_csv(
+  "C:/Users/john/Desktop/Saber_11_2025/data/sinDuplicados/saber11_2015_limpio.csv"
+)
+
+cat("\nVALORES ÚNICOS ANTES DE LIMPIEZA:\n")
+print(verificar_unicos(saber11_2015), n = Inf)
+
+```
+
+# **4. Aplicar limpieza profesional**
+
+```{r}
+clean_2015 <- limpiar_saber11(saber11_2015)
+
+cat("\nVALORES ÚNICOS DESPUÉS DE LIMPIEZA:\n")
+print(verificar_unicos(clean_2015), n = Inf)
+```
+
+
+# **5. Análisis de nulos**
+
+```{r}
+resumen_nulos <- resumen_nulos_fun(clean_2015)
+
+cat("\nRESUMEN DE NULOS (ordenado):\n")
+print(resumen_nulos, n = Inf)
+```
+
+
+# **6. IMPUTACIÓN MICE — FASE 1 (sin educación madre/padre)**
+
+```{r}
+vars_fase1 <- c(
+  "FAMI_PERSONASHOGAR","COLE_BILINGUE","FAMI_CUARTOSHOGAR",
+  "ESTU_GENERO","FAMI_TIENEAUTOMOVIL","FAMI_TIENECOMPUTADOR",
+  "FAMI_TIENEINTERNET","FAMI_TIENELAVADORA",
+  "FAMI_ESTRATOVIVIENDA",
+  "PUNT_INGLES","PUNT_MATEMATICAS","PUNT_SOCIALES_CIUDADANAS",
+  "PUNT_C_NATURALES","PUNT_LECTURA_CRITICA","PUNT_GLOBAL",
+  "PERIODO","ANIO"
+)
+
+mice_fase1 <- clean_2015 %>% select(all_of(vars_fase1))
+
+metodos1 <- make.method(mice_fase1)
+
+metodos1[c("FAMI_PERSONASHOGAR","FAMI_CUARTOSHOGAR","FAMI_ESTRATOVIVIENDA")] <- "polr"
+metodos1[c("COLE_BILINGUE","FAMI_TIENEAUTOMOVIL","FAMI_TIENECOMPUTADOR",
+           "FAMI_TIENEINTERNET","FAMI_TIENELAVADORA")] <- "logreg"
+metodos1["ESTU_GENERO"] <- "polyreg"
+metodos1[c("PERIODO","ANIO")] <- ""
+
+pred1 <- make.predictorMatrix(mice_fase1)
+pred1[, c("PERIODO","ANIO")] <- 0
+pred1[c("PERIODO","ANIO"), ] <- 0
+
+imp_fase1 <- mice(
+  mice_fase1, m=5, maxit=10,
+  method=metodos1, predictorMatrix=pred1,
+  seed=5477976
+)
+
+saveRDS(imp_fase1, "imp_fase1_2015.rds")
+
+base2015 <- complete(imp_fase1, 1)
+
+```
+
+
+# **7. IMPUTACIÓN MICE — FASE 2 (Educación Madre/Padre)**
+
+```{r}
+base2015$FAMI_EDUCACIONMADRE <- clean_2015$FAMI_EDUCACIONMADRE
+base2015$FAMI_EDUCACIONPADRE  <- clean_2015$FAMI_EDUCACIONPADRE
+
+vars_fase2 <- c(
+  "FAMI_EDUCACIONMADRE","FAMI_EDUCACIONPADRE",
+  "FAMI_PERSONASHOGAR","FAMI_CUARTOSHOGAR","FAMI_ESTRATOVIVIENDA",
+  "COLE_BILINGUE","ESTU_GENERO",
+  "FAMI_TIENEAUTOMOVIL","FAMI_TIENECOMPUTADOR",
+  "FAMI_TIENEINTERNET","FAMI_TIENELAVADORA",
+  "PUNT_INGLES","PUNT_MATEMATICAS","PUNT_SOCIALES_CIUDADANAS",
+  "PUNT_C_NATURALES","PUNT_LECTURA_CRITICA","PUNT_GLOBAL",
+  "PERIODO","ANIO"
+)
+
+mice_fase2 <- base2015 %>% select(all_of(vars_fase2))
+
+metodos2 <- make.method(mice_fase2)
+metodos2[c("FAMI_EDUCACIONMADRE","FAMI_EDUCACIONPADRE")] <- "polr"
+metodos2[c("FAMI_PERSONASHOGAR","FAMI_CUARTOSHOGAR","FAMI_ESTRATOVIVIENDA")] <- "polr"
+metodos2[c("COLE_BILINGUE","FAMI_TIENEAUTOMOVIL","FAMI_TIENECOMPUTADOR",
+           "FAMI_TIENEINTERNET","FAMI_TIENELAVADORA")] <- "logreg"
+metodos2["ESTU_GENERO"] <- "polyreg"
+metodos2[c("PERIODO","ANIO")] <- ""
+
+pred2 <- make.predictorMatrix(mice_fase2)
+pred2[, c("PERIODO","ANIO")] <- 0
+diag(pred2) <- 0
+
+imp_fase2 <- mice(
+  mice_fase2, m=5, maxit=10,
+  method=metodos2, predictorMatrix=pred2,
+  seed=5477976
+)
+
+saveRDS(imp_fase2, "imp_fase2_2015.rds")
+
+```
+
+
+# **8. Exportar las 5 imputaciones (CSV, XLSX, RDS)**
+
+```{r}
+ruta <- "C:/Users/john/Desktop/Saber_11_2025/data/DB_imp/"
+dir.create(ruta, recursive = TRUE, showWarnings = FALSE)
+
+for(i in 1:5){
+  df_imp <- complete(imp_fase2, i)
+
+  saveRDS(df_imp, paste0(ruta, "imp2015_db", i, ".rds"))
+  write.csv(df_imp, paste0(ruta, "imp2015_db", i, ".csv"), row.names = FALSE)
+  write.xlsx(df_imp, paste0(ruta, "imp2015_db", i, ".xlsx"), overwrite = TRUE)
+}
+```
+
+
+# **9. Reconstruir las 5 bases con 32 variables**
+
+```{r}
+vars_no_imputadas <- c(
+  "COLE_COD_DANE_ESTABLECIMIENTO","COLE_COD_DANE_SEDE",
+  "COLE_SEDE_PRINCIPAL","ESTU_PRIVADO_LIBERTAD",
+  "DESEMP_INGLES","COLE_AREA_UBICACION","COLE_DEPTO_UBICACION",
+  "COLE_MCPIO_UBICACION","COLE_NATURALEZA","COLE_GENERO",
+  "COLE_JORNADA","ESTU_DEPTO_PRESENTACION","ESTU_MCPIO_PRESENTACION"
+)
+
+for(i in 1:5){
+  df_imp <- complete(imp_fase2, i)
+
+  df_final <- cbind(df_imp, clean_2015[, vars_no_imputadas])
+
+  saveRDS(df_final, paste0(ruta, "imp2015_db", i, ".rds"))
+  write.csv(df_final, paste0(ruta, "imp2015_db", i, ".csv"), row.names = FALSE)
+  write.xlsx(df_final, paste0(ruta, "imp2015_db", i, ".xlsx"), overwrite = TRUE)
+}
+
+```
+
+
+# **10. Verificación automática de nulos DB por DB**
+
+```{r}
+imp_list <- list()
+
+for(i in 1:5){
+  archivo <- paste0(ruta, "imp2015_db", i, ".csv")
+  imp_list[[i]] <- read_csv(archivo, show_col_types = FALSE)
+
+  cat("\n   RESUMEN DE NULOS — imp2015_db", i, "\n", sep="")
+  print(resumen_nulos_fun(imp_list[[i]]), n=Inf)
+}
+
+```
+
+# **11. Eliminar nulos en 3 variables críticas**
+
+```{r}
+vars_limpieza <- c(
+  "ESTU_DEPTO_PRESENTACION",
+  "ESTU_MCPIO_PRESENTACION",
+  "COLE_COD_DANE_ESTABLECIMIENTO"
+)
+
+for(i in 1:5){
+
+  df <- imp_list[[i]]
+  filas_antes <- nrow(df)
+
+  df_clean <- df %>%
+    filter(across(all_of(vars_limpieza), ~ !is.na(.)))
+
+  filas_despues <- nrow(df_clean)
+
+  cat("\nDB", i,
+      " | Antes =", filas_antes,
+      " | Después =", filas_despues,
+      " | Eliminadas =", filas_antes - filas_despues, "\n"
+  )
+
+  write.csv(df_clean, paste0(ruta, "imp2015_db", i, ".csv"), row.names = FALSE)
+  saveRDS(df_clean, paste0(ruta, "imp2015_db", i, ".rds"))
+  write.xlsx(df_clean, paste0(ruta, "imp2015_db", i, ".xlsx"), overwrite = TRUE)
+}
+
+```
+

@@ -1,0 +1,358 @@
+---
+title: "saber_11_auditoria_imputacion"
+author: "JOHN JAIRO PRADO PIÑERES"
+date: "`r Sys.Date()`"
+output:
+  html_document:
+    toc: true
+    toc_depth: 2
+    number_sections: true
+    toc_float:
+      collapsed: false
+    theme: cosmo
+    code_folding: hide
+  word_document:
+    toc: true
+    toc_depth: 2
+editor_options:
+  chunk_output_type: console
+---
+
+
+<style>
+
+/* ---------------------------------------------------------
+   TIPOGRAFÍA GENERAL
+--------------------------------------------------------- */
+body {
+  background-color: #F8F9FA;       /* gris claro */
+  color: #2A2A2A;                  /* gris oscuro, mejora lectura */
+  font-family: "Segoe UI", Roboto, Arial, sans-serif; /* tipografías limpias */
+  font-size: 16px;                 /* tamaño ideal para lectura */
+  line-height: 1.6;                /* más respiración entre líneas */
+  margin: 0;
+  padding: 0 12px;
+}
+
+/* ---------------------------------------------------------
+   ENCABEZADOS
+--------------------------------------------------------- */
+h1 {
+  font-size: 28px;
+  color: #003366;
+  margin-top: 30px;
+  margin-bottom: 12px;
+  font-weight: 700;
+}
+
+h2 {
+  font-size: 24px;
+  color: #005999;
+  margin-top: 24px;
+  margin-bottom: 10px;
+  font-weight: 600;
+}
+
+h3 {
+  font-size: 20px;
+  color: #0077B6;
+  margin-top: 20px;
+  margin-bottom: 8px;
+  font-weight: 600;
+}
+
+/* ---------------------------------------------------------
+   PÁRRAFOS
+--------------------------------------------------------- */
+p {
+  font-size: 16px;
+  margin-bottom: 14px;
+}
+
+/* ---------------------------------------------------------
+   BLOQUES DE CÓDIGO
+--------------------------------------------------------- */
+pre code {
+  font-family: "Consolas", "Courier New", monospace;
+  font-size: 15px;
+  background-color: #FAFAFA;
+  padding: 12px;
+  border-radius: 6px;
+  border: 1px solid #E0E0E0;
+  display: block;
+  overflow-x: auto; /* evita desbordes */
+  white-space: pre;
+}
+
+/* ---------------------------------------------------------
+   TABLAS
+--------------------------------------------------------- */
+table {
+  width: 100%;
+  border-collapse: collapse;
+  background-color: white;
+  margin: 20px 0;
+  font-size: 15px;
+}
+
+th, td {
+  border: 1px solid #D3D3D3;
+  padding: 8px 12px;
+}
+
+th {
+  background-color: #EFEFEF;
+  text-align: center;
+  font-weight: 600;
+}
+
+tr:nth-child(even) {
+  background-color: #F7F7F7; /* filas alternas, mejora lectura */
+}
+
+/* ---------------------------------------------------------
+   LISTAS
+--------------------------------------------------------- */
+ul, ol {
+  margin-left: 20px;
+  margin-bottom: 16px;
+  font-size: 16px;
+}
+
+</style>
+
+```{r limpiar entorno, echo =FALSE}
+rm(list = ls()) # Se utiliza para borrar todos los objetos del espacio de trabajo.
+graphics.off() # Se utiliza para cerrar todas las ventanas gráficas abiertas.
+cat("\014") #Limpiar consola
+
+```
+
+```{r setup, include=FALSE}
+library(knitr)
+
+# Configuración global de chunks
+opts_chunk$set(
+  results = "markup",    # Mostrar resultados (comportamiento estándar)
+  comment = "",          # No agrega '##' antes de cada línea de salida
+  tidy = FALSE,          # No re-formatea el código automáticamente
+  fig.align = "center",  # Centrar gráficos
+  fig.width = 7,         # Tamaño estándar de figuras
+  fig.height = 5
+)
+
+# Evitar notación científica
+options(scipen = 999)
+```
+
+```{r}
+options(repos = c(CRAN = "https://cloud.r-project.org"))
+
+```
+
+```{r}
+# Instalar (solo la primera vez)
+install.packages('tidyverse') # dplyr 1.1.4, readr 2.1.5, forcats 1.0.0, stringr 1.5.2, ggplot2 4.0.0, tibble 3.3.0, lubridate 1.9.4, tidyr 1.3.1, purrr 1.1.0 
+install.packages('mice')
+install.packages('VIM')
+install.packages('tidyr')
+install.packages('writexl')
+install.packages('MASS')
+install.packages('openxlsx')
+install.packages('stringi')
+install.packages('janitor')
+
+```
+
+# **FASE 1: CARGAR LIBRERÍAS**
+
+```{r}
+
+library(tidyverse)
+library(mice)
+library(VIM)
+library(tidyr)
+library(readr)
+library(writexl)
+library(MASS, exclude = "select")   # evita conflicto con dplyr::select
+library(openxlsx)
+library(stringi)
+library(janitor)
+library(lubridate)
+library(forcats)
+
+```
+
+# **Razonamiento del Uso de Datos Post-2014 en la Predicción Global**
+
+![](C:/Users/john/Desktop/Saber_11_2025/image/CambioMetodologia.jpg){width=80%}
+
+
+
+# 1. Cargar datos
+
+```{r}
+saber11_2021 <- read_csv(
+  "C:/Users/john/Desktop/Saber_11_2025/data/2_sinDuplicados/saber11_2021_limpio.csv",
+  show_col_types = FALSE
+)
+
+imp2021 <- read_csv(
+  "C:/Users/john/Desktop/Saber_11_2025/data/3_DB_imp/imp2021_db1.csv",
+  show_col_types = FALSE
+)
+
+glimpse(saber11_2021)
+glimpse(imp2021)
+
+
+```
+
+
+
+# ============================================================
+# 2. Normalizar valores (binarias y ordinales)
+# ============================================================
+
+imp2021 <- imp2021 %>% 
+  mutate(
+    COLE_BILINGUE        = recode(COLE_BILINGUE, "N"="No","S"="Sí"),
+    FAMI_TIENEINTERNET   = recode(FAMI_TIENEINTERNET, "N"="No","S"="Sí"),
+    FAMI_TIENEAUTOMOVIL  = recode(FAMI_TIENEAUTOMOVIL, "N"="No","S"="Sí"),
+    FAMI_TIENELAVADORA   = recode(FAMI_TIENELAVADORA,  "N"="No","S"="Sí"),
+    FAMI_TIENECOMPUTADOR = recode(FAMI_TIENECOMPUTADOR,"N"="No","S"="Sí")
+  ) %>%
+  mutate(
+    COLE_BILINGUE        = factor(COLE_BILINGUE,        levels=c("No","Sí")),
+    FAMI_TIENEINTERNET   = factor(FAMI_TIENEINTERNET,   levels=c("No","Sí")),
+    FAMI_TIENEAUTOMOVIL  = factor(FAMI_TIENEAUTOMOVIL,  levels=c("No","Sí")),
+    FAMI_TIENELAVADORA   = factor(FAMI_TIENELAVADORA,   levels=c("No","Sí")),
+    FAMI_TIENECOMPUTADOR = factor(FAMI_TIENECOMPUTADOR, levels=c("No","Sí")),
+    FAMI_PERSONASHOGAR   = factor(
+      FAMI_PERSONASHOGAR,
+      levels=c("1 a 2","3 a 4","5 a 6","7 a 8","9 o más"),
+      ordered=TRUE
+    )
+  )
+
+# ============================================================
+# 3. Predictores académicos (muy fuertes)
+# ============================================================
+
+pred_academicos <- c(
+  "PUNT_INGLES","PUNT_MATEMATICAS","PUNT_SOCIALES_CIUDADANAS",
+  "PUNT_C_NATURALES","PUNT_LECTURA_CRITICA","PUNT_GLOBAL"
+)
+
+# ============================================================
+# 4. FUNCIÓN PARA IMPUTAR VARIABLE BINARIA (Sí/No)
+# ============================================================
+
+imputar_binaria <- function(df, variable) {
+
+  cat("\n======================================\n")
+  cat("IMPUTANDO:", variable, "\n")
+  cat("======================================\n")
+
+  df_imp <- df %>% select(all_of(variable), all_of(pred_academicos))
+
+  set.seed(5477976)
+  suppressMessages(ini <- mice(df_imp, maxit = 0, print = FALSE))
+
+  meth <- ini$method
+  meth[] <- ""
+  meth[variable] <- "logreg"
+
+  pred <- ini$predictorMatrix
+  pred[, variable] <- 1
+  pred[variable, ] <- 0
+
+  imp_temp <- mice(
+    df_imp,
+    m = 1, maxit = 10,
+    method = meth,
+    predictorMatrix = pred,
+    seed = 5477976,
+    print = FALSE
+  )
+
+  cat("\n--- Antes de imputar ---\n")
+  print(table(df[[variable]], useNA = "ifany"))
+
+  df[[variable]] <- complete(imp_temp, 1)[[variable]]
+
+  cat("\n--- Después de imputar ---\n")
+  print(table(df[[variable]], useNA = "ifany"))
+
+  return(df)
+}
+
+# ============================================================
+# 5. FUNCIÓN PARA IMPUTAR VARIABLE ORDINAL (polr)
+# ============================================================
+
+imputar_ordinal <- function(df, variable) {
+
+  cat("\n======================================\n")
+  cat("IMPUTANDO (ORDINAL):", variable, "\n")
+  cat("======================================\n")
+
+  df_imp <- df %>% select(all_of(variable), all_of(pred_academicos))
+
+  set.seed(5477976)
+  suppressMessages(ini <- mice(df_imp, maxit = 0, print = FALSE))
+
+  meth <- ini$method
+  meth[] <- ""
+  meth[variable] <- "polr"
+
+  pred <- ini$predictorMatrix
+  pred[,] <- 1
+  pred[variable, variable] <- 0
+
+  imp_temp <- mice(
+    df_imp,
+    m = 1, maxit = 10,
+    method = meth,
+    predictorMatrix = pred,
+    seed = 5477976,
+    print = FALSE
+  )
+
+  cat("\n--- Antes de imputar ---\n")
+  print(table(df[[variable]], useNA = "ifany"))
+
+  df[[variable]] <- complete(imp_temp, 1)[[variable]]
+
+  cat("\n--- Después de imputar ---\n")
+  print(table(df[[variable]], useNA = "ifany"))
+
+  return(df)
+}
+
+# ============================================================
+# 6. IMPUTACIÓN DE LAS 6 VARIABLES UNA POR UNA
+# ============================================================
+
+imp2021 <- imp2021
+
+imp2021 <- imputar_binaria(imp2021, "COLE_BILINGUE")
+imp2021 <- imputar_binaria(imp2021, "FAMI_TIENEINTERNET")
+imp2021 <- imputar_binaria(imp2021, "FAMI_TIENEAUTOMOVIL")
+imp2021 <- imputar_binaria(imp2021, "FAMI_TIENELAVADORA")
+imp2021 <- imputar_binaria(imp2021, "FAMI_TIENECOMPUTADOR")
+
+# ORDINARIA
+imp2021 <- imputar_ordinal(imp2021, "FAMI_PERSONASHOGAR")
+
+# ============================================================
+# 7. REVISIÓN FINAL
+# ============================================================
+
+cat("\n=============================\n")
+cat("NULOS FINALES POR VARIABLE\n")
+cat("=============================\n")
+print(colSums(is.na(imp2021)))
+
+# Resultado final
+imp2021_imputado <- imp2021
